@@ -22,13 +22,13 @@ class Visualiser:
         self.repo_name = repo
         self.repo_location = self.user + '/' + self.repo_name
         self.repo = self.g.get_repo(self.repo_location)
-        self.data_head = {'SHA':[], 'ETAG':[], 'Author':[], 'Username':[], 'Additions':[], 'Deletions':[], 'Total':[], 'Date':[]}
+        self.data_head = {'Author':[], 'Username':[], 'Total':[]}
         self.df_additions = []
         self.df = pd.DataFrame(self.data_head)
         self.pie_data = []
         self.colors = [k for k,v in pltc.cnames.items()]
        
-    
+#Threading was used to make this process a lot faster. Still very slow for an acceptable program. However I kept on reaching the rate limit while debugging, so it was extremely annoying to program around it.
     def fetch_data(self):
        commits = self.repo.get_commits()
        threads = []
@@ -71,14 +71,9 @@ class Visualiser:
             name = ''
             username = ''
         row = {
-            'SHA': data['sha'],
-            'ETAG': None,
             'Author': name,
             'Username': username,
-            'Additions': data['stats']['additions'],
-            'Deletions': data['stats']['deletions'],
             'Total': data['stats']['total'],
-            'Date': commit.stats.last_modified
         }
         self.df_additions.append(row)
 
@@ -94,7 +89,10 @@ class Visualiser:
             for n in author_names:
                 name = n
             if user_stats.shape[0] != 0:
-                devs_dict[i] = {'Username': user, 'Name': name, 'Commits': user_stats.shape[0], 'Changes': user_stats['Total'].sum()}
+                if user != '':
+                    devs_dict[i] = {'Username': user, 'Name': name, 'Commits': user_stats.shape[0], 'Changes': user_stats['Total'].sum()}
+                else:
+                    devs_dict[i] = {'Username': 'Unknown', 'Name': 'Unknown', 'Commits': user_stats.shape[0], 'Changes': user_stats['Total'].sum()}
         return devs_dict
 
     def visualize_authors(self):
@@ -102,8 +100,12 @@ class Visualiser:
         devs = self.get_developers_data()
         data = pd.DataFrame.from_dict(devs, orient='index', columns=["Username", "Name", "Commits", "Changes"])
         users_commits = data.sort_values(by=['Commits'], ascending=False)
-        plot = sns.barplot(data=users_commits[0:5], x='Name', y='Commits', palette='tab10')
-        plot.set_title("Top 5 authors in terms of commits.")
+        if (len(users_commits)>5):
+            plot = sns.barplot(data=users_commits[0:5], x='Name', y='Commits', palette='tab10')
+            plot.set_title("Top 5 authors in terms of commits.")
+        else:
+            plot = sns.barplot(data=users_commits, x='Name', y='Commits', palette='tab10')
+            plot.set_title("Top authors in terms of commits.")
         return plot   
 
     def visualize_language(self):
